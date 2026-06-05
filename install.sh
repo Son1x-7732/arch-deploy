@@ -30,7 +30,7 @@ mount -o subvol=@pkg,$BTRFS_OPTS /dev/vda2 /mnt/var/cache/pacman/pkg
 mount /dev/vda1 /mnt/boot
 
 echo "=== Pacstrap: Installing Core System ==="
-pacstrap -K /mnt base linux linux-firmware btrfs-progs micro git sudo zsh snapper limine efibootmgr base-devel sddm hyprland kitty qt6-wayland networkmanager
+pacstrap -K /mnt base linux linux-firmware btrfs-progs micro git sudo zsh snapper limine efibootmgr base-devel sddm hyprland kitty qt6-wayland networkmanager curl
 
 echo "=== Generating Fstab ==="
 genfstab -U /mnt >> /mnt/etc/fstab
