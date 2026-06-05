@@ -46,4 +46,7 @@ btrfs subvolume delete /.snapshots
 mkdir /.snapshots
 mount -a
 
+echo "=== Enabling Display Manager ==="
+systemctl enable sddm.service
+
 exit
