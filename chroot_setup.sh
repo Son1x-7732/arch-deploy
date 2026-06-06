@@ -57,7 +57,7 @@ EOF
 echo "=== Configuring Snapper ==="
 umount /.snapshots
 rm -rf /.snapshots
-snapper -c root create-config /
+snapper --no-dbus -c root create-config /
 btrfs subvolume delete /.snapshots
 mkdir /.snapshots
 mount -a
