@@ -16,10 +16,19 @@ echo "zen0:password" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 echo "=== Adding CachyOS Repositories ==="
-# Run the official CachyOS integration script non-interactively
-curl -s https://mirror.cachyos.org/cachyos-repo.sh | sh
+# Download and extract the official repository installer
+curl -O https://mirror.cachyos.org/cachyos-repo.tar.xz
+tar xvf cachyos-repo.tar.xz
+cd cachyos-repo
 
-echo "=== Installing Optimized CachyOS Kernel ==="
+# Run the integration script
+./cachyos-repo.sh
+
+# Clean up the installer files and go back to root directory
+cd ..
+rm -rf cachyos-repo cachyos-repo.tar.xz
+
+echo "=== Installing Optimized CachyOS Packages ==="
 pacman -S --noconfirm linux-cachyos linux-cachyos-headers cachyos-settings
 
 echo "=== Configuring Limine Bootloader ==="
