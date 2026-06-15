@@ -4,7 +4,7 @@ set -e
 # =========================================================================
 # 🛑 PRE-FLIGHT SAFETY CHECKS 🛑
 # =========================================================================
-# 1. UEFI Boot Check (systemd-boot will fail without this)
+# 1. UEFI Boot Check
 [[ -d /sys/firmware/efi/efivars ]] || {
     echo "🛑 FATAL: Live USB was not booted in UEFI mode. Aborting."
     exit 1
@@ -71,7 +71,6 @@ chmod 1777 /mnt/var/tmp
 mount -o umask=0077 $PART_EFI /mnt/boot
 
 echo "=== Detecting Hardware Architecture ==="
-# Hardcoded to Intel for Acer Nitro 5 (i5-12450H)
 UCODE_PKG="intel-ucode"
 UCODE_IMG="/intel-ucode.img"
 
@@ -106,10 +105,11 @@ fi
 
 echo "=== Enabling Multilib on Host Environment ==="
 sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' /etc/pacman.conf
-pacman -Sy
+# Perform a safe full upgrade of the live system environment to prevent partial sync risks
+pacman -Syu --noconfirm
 
 echo "=== Pacstrap: Installing Hardware-Tuned Base ==="
-pacstrap -K /mnt base linux-cachyos linux-cachyos-headers linux-firmware $UCODE_PKG btrfs-progs mkinitcpio mesa vulkan-intel intel-media-driver nvidia nvidia-utils lib32-nvidia-utils sddm plasma-desktop konsole dolphin networkmanager plasma-nm pipewire pipewire-pulse pipewire-alsa wireplumber plasma-pa switcheroo-control firewalld sudo micro zsh zram-generator cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist ananicy-cpp $V4_PKG
+pacstrap -K /mnt base linux-cachyos linux-cachyos-headers linux-firmware $UCODE_PKG btrfs-progs mkinitcpio mesa vulkan-intel intel-media-driver nvidia nvidia-utils lib32-nvidia-utils sddm plasma-desktop konsole dolphin networkmanager plasma-nm pipewire pipewire-pulse pipewire-alsa wireplumber plasma-pa switcheroo-control firewalld sudo micro zsh zram-generator cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist ananicy-cpp limine efibootmgr $V4_PKG
 
 echo "=== Injecting Explicit CachyOS Repositories ==="
 awk '/^\[core\]/{exit} {print}' /mnt/etc/pacman.conf > /mnt/etc/pacman.conf.new
@@ -145,10 +145,19 @@ echo "=== Extracting Hardware UUID ==="
 ROOT_UUID=$(blkid -s UUID -o value $PART_ROOT)
 [ -z "$ROOT_UUID" ] && { echo "🛑 FATAL: Could not read UUID from $PART_ROOT"; exit 1; }
 
+# Bridge host variables into the chroot via an environment state file
+echo "DISK=\"$DISK\"" > /mnt/chroot_env.sh
+echo "ROOT_UUID=\"$ROOT_UUID\"" >> /mnt/chroot_env.sh
+echo "UCODE_IMG=\"$UCODE_IMG\"" >> /mnt/chroot_env.sh
+
 echo "=== Generating Chroot Payload ==="
 cat << 'EOF' > /mnt/chroot_setup.sh
 #!/bin/bash
 set -e
+
+# Load variables passed from the host script
+source /chroot_env.sh
+rm /chroot_env.sh
 
 echo "=== Setting Timezone & Locale ==="
 ln -sf /usr/share/zoneinfo/Asia/Kolkata /etc/localtime
@@ -193,40 +202,46 @@ echo "=== Fixing mkinitcpio for Btrfs ==="
 sed -i 's/^MODULES=.*/MODULES=(btrfs)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
-echo "=== Installing systemd-boot ==="
-bootctl install
+echo "=== Installing Limine Bootloader ==="
+mkdir -p /boot/EFI/BOOT
+cp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/
 
-cat << BOOTCONF > /boot/loader/loader.conf
-default cachyos.conf
-timeout 3
-console-mode max
-editor no
-BOOTCONF
-EOF
+# Dynamically construct the configuration block based on microcode presence
+if [ -n "$UCODE_IMG" ]; then
+    MODULE_LINE="    module_path: boot():$UCODE_IMG"
+else
+    MODULE_LINE=""
+fi
 
-cat << EOF >> /mnt/chroot_setup.sh
-cat << BOOTENTRY > /boot/loader/entries/cachyos.conf
-title   CachyOS (Bare Metal - Nitro 5)
-linux   /vmlinuz-linux-cachyos
-$( [ -n "$UCODE_IMG" ] && echo "initrd  $UCODE_IMG" )
-initrd  /initramfs-linux-cachyos.img
-# Bleeding-edge NVIDIA 595+ param for flawless laptop suspend/resume
-options root=UUID=$ROOT_UUID rootflags=subvol=@ rw quiet nvidia.NVreg_UseKernelSuspendNotifiers=1
-BOOTENTRY
+cat << LIMINECONF > /boot/limine.conf
+timeout: 3
+remember_last_entry: yes
 
-cat << FALLBACK > /boot/loader/entries/cachyos-fallback.conf
-title   CachyOS (Fallback)
-linux   /vmlinuz-linux-cachyos
-$( [ -n "$UCODE_IMG" ] && echo "initrd  $UCODE_IMG" )
-initrd  /initramfs-linux-cachyos-fallback.img
-options root=UUID=$ROOT_UUID rootflags=subvol=@ rw quiet nvidia.NVreg_UseKernelSuspendNotifiers=1
-FALLBACK
+//CachyOS (Bare Metal - Nitro 5)
+    protocol: linux
+    kernel_path: boot():/vmlinuz-linux-cachyos
+$MODULE_LINE
+    module_path: boot():/initramfs-linux-cachyos.img
+    cmdline: root=UUID=$ROOT_UUID rootflags=subvol=@ rw quiet nvidia.NVreg_UseKernelSuspendNotifiers=1 nvidia_drm.fbdev=1 acpi_backlight=native nowatchdog
+
+//CachyOS (Fallback)
+    protocol: linux
+    kernel_path: boot():/vmlinuz-linux-cachyos
+$MODULE_LINE
+    module_path: boot():/initramfs-linux-cachyos-fallback.img
+    cmdline: root=UUID=$ROOT_UUID rootflags=subvol=@ rw quiet nvidia.NVreg_UseKernelSuspendNotifiers=1 nvidia_drm.fbdev=1 acpi_backlight=native nowatchdog
+LIMINECONF
+
+# Secure registration inside UEFI NVRAM table
+efibootmgr --create --disk "$DISK" --part 1 --loader /EFI/BOOT/BOOTX64.EFI --label "CachyOS (Limine)" --unicode
 EOF
 
 echo "=== Executing Chroot Payload ==="
 chmod +x /mnt/chroot_setup.sh
 arch-chroot -S /mnt /chroot_setup.sh
 
+echo "=== CLEANING UP ==="
+rm -f /mnt/chroot_setup.sh
+
 echo "=== INSTALLATION COMPLETE! ==="
-rm /mnt/chroot_setup.sh
-echo "You are ready. Type: umount -R /mnt && reboot"
+echo "You are completely ready. Run: umount -R /mnt && reboot"
