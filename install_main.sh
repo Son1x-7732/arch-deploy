@@ -167,17 +167,17 @@ hwclock --systohc
 sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
-echo "arch-kde" > /etc/hostname
+echo "void" > /etc/hostname
 
 echo "=== Creating User ==="
-useradd -m -G wheel -s /bin/zsh zen0
+useradd -m -G wheel -s /bin/zsh nix
 
 echo "=== Setting Passwords ==="
 set +e
 echo "Enter password for ROOT:"
 while ! passwd; do echo "Failed. Try again."; done
-echo "Enter password for zen0:"
-while ! passwd zen0; do echo "Failed. Try again."; done
+echo "Enter password for nix:"
+while ! passwd nix; do echo "Failed. Try again."; done
 set -e
 
 echo "=== Configuring Sudo ==="
