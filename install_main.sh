@@ -10,12 +10,14 @@ set -e
     exit 1
 }
 
-# 2. Drive Targeting (Targeting nvme0n1 to protect Windows on nvme1n1)
-DISK="/dev/nvme0n1"
-PART_EFI="${DISK}p1"
-PART_ROOT="${DISK}p2"
+# 2. Permanent Hardware ID Targeting (Locks onto the Linux Micron SSD)
+DISK="/dev/disk/by-id/nvme-Micron_3400_MTFDKBA512TFH_23013DE768E4"
+PART_EFI="${DISK}-part1"
+PART_ROOT="${DISK}-part2"
 
-[[ "$DISK" == *"nvme1n1"* ]] && { echo "🛑 FATAL: DISK is set to the Windows drive!"; exit 1; }
+# Ultimate Fail-Safe Check: Block the script immediately if it targets the WD Blue Windows drive
+[[ "$DISK" == *"WD_Blue"* ]] && { echo "🛑 FATAL: DISK is targeting the Windows drive!"; exit 1; }
+[[ "$DISK" == *"SN5000"* ]] && { echo "🛑 FATAL: DISK is targeting the Windows drive!"; exit 1; }
 
 echo "🚨 WARNING: This will completely WIPE your LINUX drive ($DISK) in 10 seconds."
 echo "Your Windows drive (nvme1n1) is locked and WILL NOT be touched."
