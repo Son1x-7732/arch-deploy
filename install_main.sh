@@ -111,7 +111,7 @@ sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' /etc/pacman.conf
 pacman -Syu --noconfirm
 
 echo "=== Pacstrap: Installing Hardware-Tuned Base ==="
-pacstrap -K /mnt base linux-cachyos linux-cachyos-headers linux-firmware $UCODE_PKG btrfs-progs mkinitcpio mesa vulkan-intel intel-media-driver nvidia nvidia-utils lib32-nvidia-utils sddm plasma-desktop konsole dolphin networkmanager plasma-nm pipewire pipewire-pulse pipewire-alsa wireplumber plasma-pa switcheroo-control firewalld sudo micro zsh zram-generator cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist ananicy-cpp limine efibootmgr bluez bluez-utils bluedevil sof-firmware alsa-firmware alsa-utils $V4_PKG
+pacstrap -K /mnt base linux-cachyos linux-cachyos-headers linux-firmware $UCODE_PKG btrfs-progs mkinitcpio mesa vulkan-intel intel-media-driver nvidia nvidia-utils lib32-nvidia-utils sddm plasma-desktop konsole dolphin networkmanager dnsmasq iptables-nft plasma-nm pipewire pipewire-pulse pipewire-alsa wireplumber plasma-pa switcheroo-control firewalld sudo micro zsh zram-generator cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist ananicy-cpp limine efibootmgr bluez bluez-utils bluedevil sof-firmware alsa-firmware alsa-utils $V4_PKG
 
 echo "=== Injecting Explicit CachyOS Repositories ==="
 awk '/^\[core\]/{exit} {print}' /mnt/etc/pacman.conf > /mnt/etc/pacman.conf.new
