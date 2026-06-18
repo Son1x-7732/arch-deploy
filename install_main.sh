@@ -107,11 +107,15 @@ fi
 
 echo "=== Enabling Multilib on Host Environment ==="
 sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' /etc/pacman.conf
-# Perform a safe full upgrade of the live system environment to prevent partial sync risks
-pacman -Syu --noconfirm
+
+# Inject a guaranteed Arch fallback mirror so the sync never fails
+echo 'Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch' >> /etc/pacman.d/mirrorlist
+
+# Only sync the databases to prepare for pacstrap. Do NOT full-upgrade the live USB in RAM.
+pacman -Sy
 
 echo "=== Pacstrap: Installing Hardware-Tuned Base ==="
-pacstrap -K /mnt base linux-cachyos linux-cachyos-headers linux-firmware $UCODE_PKG btrfs-progs mkinitcpio mesa vulkan-intel intel-media-driver nvidia nvidia-utils lib32-nvidia-utils sddm plasma-desktop konsole dolphin networkmanager dnsmasq iptables-nft plasma-nm pipewire pipewire-pulse pipewire-alsa wireplumber plasma-pa switcheroo-control firewalld sudo micro zsh zram-generator cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist ananicy-cpp limine efibootmgr bluez bluez-utils bluedevil sof-firmware alsa-firmware alsa-utils $V4_PKG
+pacstrap -K /mnt base linux-cachyos linux-cachyos-headers linux-firmware $UCODE_PKG btrfs-progs mkinitcpio mesa vulkan-intel intel-media-driver nvidia nvidia-utils lib32-nvidia-utils sddm plasma-desktop konsole dolphin networkmanager dnsmasq iptables-nft plasma-nm pipewire pipewire-pulse pipewire-alsa wireplumber plasma-pa switcheroo-control firewalld sudo micro zsh zram-generator cachyos-keyring cachyos-mirrorlist cachyos-v3-mirrorlist ananicy-cpp limine efibootmgr bluez bluez-utils bluedevil sof-firmware alsa-firmware alsa-utils zsh-syntax-highlighting zsh-autosuggestions zsh-history-substring-search fzf eza bat pkgfile kscreen spectacle tesseract tesseract-data-eng ark p7zip unrar unzip $V4_PKG
 
 echo "=== Injecting Explicit CachyOS Repositories ==="
 awk '/^\[core\]/{exit} {print}' /mnt/etc/pacman.conf > /mnt/etc/pacman.conf.new
